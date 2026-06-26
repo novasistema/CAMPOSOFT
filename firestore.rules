@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default safety deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Central authorization helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function canAccess(userId) {
+      return userId == 'shared_farm' || isOwner(userId);
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity validation functions
+    function isValidAnimal(data) {
+      return data.keys().hasAll(['id', 'caravana', 'breed', 'gender', 'category', 'birthDate', 'initialWeight', 'currentWeight', 'status', 'userId', 'createdAt', 'updatedAt']) 
+        && data.keys().size() == 13
+        && data.id is string && data.id.size() <= 128
+        && data.caravana is string && data.caravana.size() <= 64
+        && data.breed is string && data.breed.size() <= 64
+        && data.gender is string && (data.gender == 'Macho' || data.gender == 'Hembra')
+        && data.category is string && (data.category == 'Ternero' || data.category == 'Ternera' || data.category == 'Novillo' || data.category == 'Vaquillona' || data.category == 'Vaca' || data.category == 'Toro')
+        && data.birthDate is string && data.birthDate.size() <= 64
+        && data.initialWeight is number && data.initialWeight >= 0
+        && data.currentWeight is number && data.currentWeight >= 0
+        && data.status is string && (data.status == 'Activo' || data.status == 'Vendido' || data.status == 'Baja')
+        && data.userId is string && (data.userId == 'shared_farm' || (isSignedIn() && data.userId == request.auth.uid))
+        && data.weightHistory is list && data.weightHistory.size() <= 1500;
+    }
+
+    function isValidFeed(data) {
+      return data.keys().hasAll(['id', 'name', 'stockKg', 'costPerKgUSD', 'source', 'userId', 'createdAt', 'updatedAt'])
+        && (data.keys().size() == 8 || (data.keys().size() == 9 && data.keys().hasAny(['notes'])))
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.stockKg is number && data.stockKg >= 0
+        && data.costPerKgUSD is number && data.costPerKgUSD >= 0
+        && data.source is string && (data.source == 'Producido' || data.source == 'Comprado')
+        && data.userId is string && (data.userId == 'shared_farm' || (isSignedIn() && data.userId == request.auth.uid))
+        && (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    function isValidFeedAssignment(data) {
+      return data.keys().hasAll(['id', 'animalId', 'date', 'feedId', 'amountKg', 'userId', 'createdAt'])
+        && data.keys().size() == 7
+        && data.id is string && data.id.size() <= 128
+        && data.animalId is string && data.animalId.size() <= 128
+        && data.date is string && data.date.size() <= 64
+        && data.feedId is string && data.feedId.size() <= 128
+        && data.amountKg is number && data.amountKg >= 0
+        && data.userId is string && (data.userId == 'shared_farm' || (isSignedIn() && data.userId == request.auth.uid));
+    }
+
+    // Sub-expense validation inside CropField
+    function isValidField(data) {
+      return data.keys().hasAll(['id', 'name', 'areaHectares', 'cropType', 'rentalCostUSD', 'status', 'estimatedYieldTon', 'userId', 'createdAt', 'updatedAt'])
+        && (data.keys().size() >= 10 && data.keys().size() <= 14)
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.areaHectares is number && data.areaHectares >= 0
+        && data.cropType is string && data.cropType.size() <= 128
+        && data.rentalCostUSD is number && data.rentalCostUSD >= 0
+        && data.status is string && (data.status == 'Planificado' || data.status == 'Sembrado' || data.status == 'En Desarrollo' || data.status == 'Cosechado')
+        && data.estimatedYieldTon is number && data.estimatedYieldTon >= 0
+        && data.userId is string && (data.userId == 'shared_farm' || (isSignedIn() && data.userId == request.auth.uid))
+        && data.expenses is list && data.expenses.size() <= 500
+        && (!data.keys().hasAny(['rentalContractTerm']) || (data.rentalContractTerm is string && data.rentalContractTerm.size() <= 128))
+        && (!data.keys().hasAny(['actualYieldTon']) || (data.actualYieldTon is number && data.actualYieldTon >= 0))
+        && (!data.keys().hasAny(['harvestDate']) || (data.harvestDate is string && data.harvestDate.size() <= 64));
+    }
+
+    function isValidPartner(data) {
+      return data.keys().hasAll(['id', 'name', 'userId', 'createdAt'])
+        && (data.keys().size() >= 4 && data.keys().size() <= 8)
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.userId is string && (data.userId == 'shared_farm' || (isSignedIn() && data.userId == request.auth.uid))
+        && (!data.keys().hasAny(['quotaShare']) || data.quotaShare is number)
+        && (!data.keys().hasAny(['phone']) || data.phone is string)
+        && (!data.keys().hasAny(['email']) || data.email is string)
+        && (!data.keys().hasAny(['notes']) || data.notes is string);
+    }
+
+    function isValidPartnerTransaction(data) {
+      return data.keys().hasAll(['id', 'partnerId', 'amountUSD', 'date', 'type', 'concept', 'category', 'userId', 'createdAt'])
+        && data.keys().size() == 9
+        && data.id is string && data.id.size() <= 128
+        && data.partnerId is string && data.partnerId.size() <= 128
+        && data.amountUSD is number
+        && data.date is string && data.date.size() <= 64
+        && data.type is string && (data.type == 'Aporte' || data.type == 'Retiro' || data.type == 'Gasto Asociado')
+        && data.concept is string && data.concept.size() <= 256
+        && data.category is string && (data.category == 'Hacienda' || data.category == 'Agrícola' || data.category == 'General')
+        && data.userId is string && (data.userId == 'shared_farm' || (isSignedIn() && data.userId == request.auth.uid));
+    }
+
+    // Root user subcollection mappings
+    match /users/{userId} {
+      allow read, write: if canAccess(userId);
+
+      match /animals/{animalId} {
+        allow read, delete: if canAccess(userId);
+        allow create: if canAccess(userId) && isValidId(animalId) && isValidAnimal(incoming());
+        allow update: if canAccess(userId) && isValidId(animalId) && isValidAnimal(incoming()) && incoming().createdAt == existing().createdAt;
+      }
+
+      match /feeds/{feedId} {
+        allow read, delete: if canAccess(userId);
+        allow create: if canAccess(userId) && isValidId(feedId) && isValidFeed(incoming());
+        allow update: if canAccess(userId) && isValidId(feedId) && isValidFeed(incoming()) && incoming().createdAt == existing().createdAt;
+      }
+
+      match /feedAssignments/{assignmentId} {
+        allow read, delete: if canAccess(userId);
+        allow create: if canAccess(userId) && isValidId(assignmentId) && isValidFeedAssignment(incoming());
+        allow update: if canAccess(userId) && isValidId(assignmentId) && isValidFeedAssignment(incoming()) && incoming().createdAt == existing().createdAt;
+      }
+
+      match /fields/{fieldId} {
+        allow read, delete: if canAccess(userId);
+        allow create: if canAccess(userId) && isValidId(fieldId) && isValidField(incoming());
+        allow update: if canAccess(userId) && isValidId(fieldId) && isValidField(incoming()) && incoming().createdAt == existing().createdAt;
+      }
+
+      match /partners/{partnerId} {
+        allow read, delete: if canAccess(userId);
+        allow create: if canAccess(userId) && isValidId(partnerId) && isValidPartner(incoming());
+        allow update: if canAccess(userId) && isValidId(partnerId) && isValidPartner(incoming()) && incoming().createdAt == existing().createdAt;
+      }
+
+      match /partnerTransactions/{transactionId} {
+        allow read, delete: if canAccess(userId);
+        allow create: if canAccess(userId) && isValidId(transactionId) && isValidPartnerTransaction(incoming());
+        allow update: if canAccess(userId) && isValidId(transactionId) && isValidPartnerTransaction(incoming()) && incoming().createdAt == existing().createdAt;
+      }
+    }
+  }
+}

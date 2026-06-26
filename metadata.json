@@ -1,0 +1,6 @@
+{
+  "name": "Control Agroganadero",
+  "description": "Sistema integral para el control de ganado (identificación, alimentación, ganancia de peso) y gestión de costos de producción agrícola (alquiler, semillas, fertilizantes, maquinaria).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "Animal": {
+      "title": "Animal",
+      "description": "An individual animal with caravana tag, breed, and weight history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the animal." },
+        "caravana": { "type": "string", "description": "Physical ear tag identifier." },
+        "breed": { "type": "string", "description": "Breed of the animal." },
+        "gender": { "type": "string", "enum": ["Macho", "Hembra"], "description": "Gender of the animal." },
+        "category": { "type": "string", "enum": ["Ternero", "Ternera", "Novillo", "Vaquillona", "Vaca", "Toro"], "description": "Category age/type." },
+        "birthDate": { "type": "string", "description": "Birth date of the animal." },
+        "initialWeight": { "type": "number", "description": "Weight when registered." },
+        "currentWeight": { "type": "number", "description": "Latest current weight." },
+        "weightHistory": { "type": "array", "description": "Array of historic weight measurements." },
+        "status": { "type": "string", "enum": ["Activo", "Vendido", "Baja"], "description": "Current status." },
+        "notes": { "type": "string", "description": "Additional remarks." },
+        "userId": { "type": "string", "description": "Owner of the animal record." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "caravana", "breed", "gender", "category", "birthDate", "initialWeight", "currentWeight", "status", "userId", "createdAt", "updatedAt"]
+    },
+    "FeedInventory": {
+      "title": "FeedInventory",
+      "description": "Information about feeds, silos, or forage.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "stockKg": { "type": "number" },
+        "costPerKgUSD": { "type": "number" },
+        "source": { "type": "string", "enum": ["Producido", "Comprado"] },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "stockKg", "costPerKgUSD", "source", "userId", "createdAt", "updatedAt"]
+    },
+    "FeedAssignment": {
+      "title": "FeedAssignment",
+      "description": "Log of a single feeding assignment to an animal.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "animalId": { "type": "string" },
+        "date": { "type": "string" },
+        "feedId": { "type": "string" },
+        "amountKg": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "animalId", "date", "feedId", "amountKg", "userId", "createdAt"]
+    },
+    "CropField": {
+      "title": "CropField",
+      "description": "A rented plot or field with crops planted.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "areaHectares": { "type": "number" },
+        "cropType": { "type": "string" },
+        "rentalCostUSD": { "type": "number" },
+        "rentalContractTerm": { "type": "string" },
+        "expenses": { "type": "array", "description": "Array of CropExpense objects." },
+        "status": { "type": "string", "enum": ["Planificado", "Sembrado", "En Desarrollo", "Cosechado"] },
+        "estimatedYieldTon": { "type": "number" },
+        "actualYieldTon": { "type": "number" },
+        "harvestDate": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "areaHectares", "cropType", "rentalCostUSD", "status", "estimatedYieldTon", "userId", "createdAt", "updatedAt"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "A financial or strategic partner contributing to livestock or agricultural investments.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "quotaShare": { "type": "number" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "userId", "createdAt"]
+    },
+    "PartnerTransaction": {
+      "title": "PartnerTransaction",
+      "description": "Financial transaction associated with a partner contribution or extraction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "partnerId": { "type": "string" },
+        "amountUSD": { "type": "number" },
+        "date": { "type": "string" },
+        "type": { "type": "string", "enum": ["Aporte", "Retiro", "Gasto Asociado"] },
+        "concept": { "type": "string" },
+        "category": { "type": "string", "enum": ["Hacienda", "Agrícola", "General"] },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "partnerId", "amountUSD", "date", "type", "concept", "category", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/animals/{animalId}": {
+      "schema": "Animal",
+      "description": "The animals associated with a given user."
+    },
+    "users/{userId}/feeds/{feedId}": {
+      "schema": "FeedInventory",
+      "description": "The feed and silo inventory belonging to a user."
+    },
+    "users/{userId}/feedAssignments/{assignmentId}": {
+      "schema": "FeedAssignment",
+      "description": "The feeding history for a user."
+    },
+    "users/{userId}/fields/{fieldId}": {
+      "schema": "CropField",
+      "description": "The rented fields or lots belonging to a user."
+    },
+    "users/{userId}/partners/{partnerId}": {
+      "schema": "Partner",
+      "description": "Strategic investment partners belonging to a user."
+    },
+    "users/{userId}/partnerTransactions/{transactionId}": {
+      "schema": "PartnerTransaction",
+      "description": "Historic financial contributions and withdrawals of partners."
+    }
+  }
+}
